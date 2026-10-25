@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Apuração ao vivo · 2º turno 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f6f7f8;--card:#fff;--ink:#14181d;--sub:#5b6470;--line:#dde1e6;--lula:#c8102e;--flavio:#1f4fa3;--ok:#1b7f4b;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1215;--card:#171b20;--ink:#eef1f4;--sub:#9aa4af;--line:#2a3038;--lula:#e5484d;--flavio:#4c82e6;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif}
+main{max-width:820px;margin:0 auto;padding:16px}
+.num{font-family:"Barlow Condensed",Barlow,sans-serif;font-variant-numeric:tabular-nums}
+h1{font:500 18px Barlow,sans-serif;margin:4px 0 2px}
+.meta{color:var(--sub);font-size:14px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px}
+.dot.err{background:#d97706}
+.hero{margin:20px 0 8px}
+.names{display:flex;justify-content:space-between;align-items:flex-end}
+.names .pct{font-size:clamp(44px,12vw,84px);font-weight:700;line-height:1}
+.names .who{font-size:15px;color:var(--sub)}
+.right{text-align:right}
+.tug{position:relative;height:28px;display:flex;gap:3px;margin:10px 0 6px}
+.tug div{transition:width .8s ease}
+.tug .l{background:var(--lula);border-radius:6px 0 0 6px}
+.tug .f{background:var(--flavio);border-radius:0 6px 6px 0}
+.tug .mid{position:absolute;left:50%;top:-6px;bottom:-6px;width:2px;background:var(--ink);opacity:.6}
+.votes{display:flex;justify-content:space-between;color:var(--sub);font-size:15px}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:20px 0}
+@media (min-width:640px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat span{color:var(--sub);font-size:13px}
+.stat b{display:block;font-size:30px;font-weight:700}
+h2{font:500 16px Barlow,sans-serif;margin:24px 0 8px}
+.row{display:grid;grid-template-columns:110px 1fr 52px 52px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
+.row .bar{display:flex;height:14px;gap:2px}
+.row .bar i{display:block}
+.row .bar i:first-child{background:var(--lula);border-radius:3px 0 0 3px}
+.row .bar i:last-child{background:var(--flavio);border-radius:0 3px 3px 0}
+.row small{color:var(--sub);font-size:12px;display:block}
+.pl{color:var(--lula);text-align:right}.pf{color:var(--flavio);text-align:right}
+.err-box{background:var(--card);border:1px solid #d97706;border-radius:10px;padding:12px;margin-top:12px;display:none}
+footer{color:var(--sub);font-size:13px;margin:24px 0}
+a{color:inherit}
+</style>
+</head>
+<body>
+<main>
+<h1>Apuração ao vivo · Presidente, 2º turno 2026</h1>
+<div class="meta"><span><span class="dot" id="dot"></span><span id="status">Carregando dados do TSE…</span></span><span id="tse-time"></span></div>
+
+<section class="hero">
+  <div class="names">
+    <div><div class="pct num" id="pl" style="color:var(--lula)">–</div><div class="who">Lula (PT)</div></div>
+    <div class="right"><div class="pct num" id="pf" style="color:var(--flavio)">–</div><div class="who">Flávio Bolsonaro (PL)</div></div>
+  </div>
+  <div class="tug"><div class="l" id="bl" style="width:50%"></div><div class="f" id="bf" style="width:50%"></div><span class="mid"></span></div>
+  <div class="votes num"><span id="vl">–</span><span id="vf">–</span></div>
+</section>
+
+<div class="stats">
+  <div class="stat"><span>Urnas apuradas</span><b class="num" id="urnas">–</b></div>
+  <div class="stat"><span>Diferença</span><b class="num" id="diff">–</b><span id="lider"></span></div>
+  <div class="stat"><span>Votos válidos</span><b class="num" id="validos">–</b></div>
+  <div class="stat"><span>Brancos + nulos</span><b class="num" id="bn">–</b></div>
+</div>
+
+<div class="err-box" id="err"></div>
+
+<h2>Por região</h2>
+<div id="regioes"></div>
+
+<h2>Por estado</h2>
+<div id="estados"></div>
+
+<footer>Dados: JSON oficial do TSE (resultados.tse.jus.br), eleição 6258. Atualiza sozinho a cada 20 segundos. Percentuais sobre votos válidos.</footer>
+</main>
+
+<script>
+const BASE='https://resultados.tse.jus.br/oficial/ele2026/6258/dados/';
+const UFS={ac:['Acre','Norte'],am:['Amazonas','Norte'],ap:['Amapá','Norte'],pa:['Pará','Norte'],ro:['Rondônia','Norte'],rr:['Roraima','Norte'],to:['Tocantins','Norte'],
+al:['Alagoas','Nordeste'],ba:['Bahia','Nordeste'],ce:['Ceará','Nordeste'],ma:['Maranhão','Nordeste'],pb:['Paraíba','Nordeste'],pe:['Pernambuco','Nordeste'],pi:['Piauí','Nordeste'],rn:['Rio G. do Norte','Nordeste'],se:['Sergipe','Nordeste'],
+df:['Distrito Federal','Centro-Oeste'],go:['Goiás','Centro-Oeste'],ms:['Mato G. do Sul','Centro-Oeste'],mt:['Mato Grosso','Centro-Oeste'],
+es:['Espírito Santo','Sudeste'],mg:['Minas Gerais','Sudeste'],rj:['Rio de Janeiro','Sudeste'],sp:['São Paulo','Sudeste'],
+pr:['Paraná','Sul'],rs:['Rio G. do Sul','Sul'],sc:['Santa Catarina','Sul']};
+const nf=new Intl.NumberFormat('pt-BR');
+const pctf=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+const toNum=s=>Number(String(s||'0').replace(/\./g,'').replace(',','.'));
+
+function parse(j){
+  const out={lula:0,flavio:0,pst:toNum(j.s&&j.s.pst),vv:toNum(j.v&&j.v.vv),vb:toNum(j.v&&j.v.vb),vn:toNum(j.v&&j.v.tvn),dg:j.dg,hg:j.hg};
+  (j.carg||[]).forEach(c=>(c.agr||[]).forEach(a=>(a.par||[]).forEach(p=>(p.cand||[]).forEach(k=>{
+    if(k.n==='13')out.lula=toNum(k.vap);
+    if(k.n==='22')out.flavio=toNum(k.vap);
+  }))));
+  return out;
+}
+async function get(uf){
+  const r=await fetch(`${BASE}${uf}/${uf}-c0001-e006258-u.json?t=${Date.now()}`,{cache:'no-store'});
+  if(!r.ok)throw new Error(uf.toUpperCase()+': HTTP '+r.status);
+  return parse(await r.json());
+}
+function row(nome,sub,l,f){
+  const t=l+f, pl=t?l/t*100:0, pf=t?f/t*100:0;
+  return `<div class="row"><div>${nome}<small>${sub}</small></div>
+  <div class="bar"><i style="width:${t?pl:50}%"></i><i style="width:${t?pf:50}%"></i></div>
+  <div class="num pl">${t?pl.toFixed(1).replace('.',','):'–'}</div><div class="num pf">${t?pf.toFixed(1).replace('.',','):'–'}</div></div>`;
+}
+async function tick(){
+  const dot=document.getElementById('dot'),st=document.getElementById('status'),err=document.getElementById('err');
+  try{
+    const br=await get('br');
+    const t=br.lula+br.flavio, pl=t?br.lula/t*100:50, pf=t?br.flavio/t*100:50;
+    document.getElementById('pl').textContent=t?pctf(pl):'–';
+    document.getElementById('pf').textContent=t?pctf(pf):'–';
+    document.getElementById('bl').style.width=pl+'%';
+    document.getElementById('bf').style.width=pf+'%';
+    document.getElementById('vl').textContent=nf.format(br.lula)+' votos';
+    document.getElementById('vf').textContent=nf.format(br.flavio)+' votos';
+    document.getElementById('urnas').textContent=pctf(br.pst);
+    const d=Math.abs(br.lula-br.flavio);
+    document.getElementById('diff').textContent=nf.format(d);
+    document.getElementById('lider').textContent=t?(br.lula>br.flavio?'Lula à frente':br.flavio>br.lula?'Flávio à frente':'Empate'):'';
+    document.getElementById('validos').textContent=nf.format(br.vv);
+    document.getElementById('bn').textContent=nf.format(br.vb+br.vn);
+    document.getElementById('tse-time').textContent=`TSE: ${br.dg||''} ${br.hg||''}`;
+
+    const ufs=Object.keys(UFS);
+    const res=await Promise.allSettled(ufs.map(get));
+    const reg={};
+    let html='';
+    res.forEach((r,i)=>{
+      const uf=ufs[i],[nome,regiao]=UFS[uf];
+      if(r.status!=='fulfilled'){html+=row(nome,uf.toUpperCase()+' · sem dados','0','0');return;}
+      const v=r.value;
+      reg[regiao]=reg[regiao]||{l:0,f:0};
+      reg[regiao].l+=v.lula;reg[regiao].f+=v.flavio;
+      html+=row(nome,`${uf.toUpperCase()} · ${pctf(v.pst)} apurado`,v.lula,v.flavio);
+    });
+    document.getElementById('estados').innerHTML=html;
+    document.getElementById('regioes').innerHTML=['Norte','Nordeste','Centro-Oeste','Sudeste','Sul']
+      .map(n=>{const x=reg[n]||{l:0,f:0};return row(n,nf.format(x.l+x.f)+' votos',x.l,x.f);}).join('');
+
+    dot.className='dot';st.textContent='Ao vivo · atualizado às '+new Date().toLocaleTimeString('pt-BR');
+    err.style.display='none';
+  }catch(e){
+    dot.className='dot err';st.textContent='Falha ao buscar o TSE, tentando de novo…';
+    err.style.display='block';
+    err.textContent='Não consegui ler o JSON do TSE ('+e.message+'). Se abriu o arquivo direto do disco, sirva por http (ex.: "python -m http.server" na pasta) ou use o app Resultados do TSE.';
+  }
+}
+tick();setInterval(tick,20000);
+</script>
+</body>
+</html>
